@@ -1,6 +1,10 @@
+from pathlib import Path
+
 import streamlit as st
 
+import config_data as config
 from auth_ui import USER_SESSION_KEY
+from database import init_database
 
 
 # 整个应用的默认页面配置
@@ -9,7 +13,31 @@ st.set_page_config(
     page_icon="📚",
     layout="wide",
 )
+# ==================================================
+# 初始化运行目录和SQLite数据库
+# ==================================================
 
+Path(config.persist_directory).mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+Path(config.uploads_directory).mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+Path(config.database_path).parent.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+Path("chat_history").mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
+init_database()
 
 # ==================================================
 # 定义四个页面
