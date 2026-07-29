@@ -236,3 +236,127 @@ def list_file_records() -> list[dict]:
         dict(row)
         for row in rows
     ]
+def get_file_by_id(
+    file_id: int,
+) -> dict | None:
+    """
+    根据文献ID查询完整记录。
+    """
+
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                files.id,
+                files.file_md5,
+                files.original_filename,
+                files.stored_path,
+                files.uploader_id,
+                files.upload_time,
+                files.chunk_count,
+                files.status,
+                users.username AS uploader_username,
+                users.display_name AS uploader_name
+            FROM files
+            JOIN users
+                ON users.id = files.uploader_id
+            WHERE files.id = ?
+            """,
+            (file_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def delete_original_file(
+    stored_path: str,
+) -> None:
+    """
+    删除data/uploads中的原始文件。
+
+    文件已经不存在时不报错，
+    保证重复执行删除操作仍然安全。
+    """
+
+    file_path = Path(stored_path)
+
+    if file_path.exists():
+        file_path.unlink()
+
+
+def remove_legacy_md5(
+    file_md5: str,
+) -> None:
+    """
+    从旧版md5.txt中删除指定MD5。
+
+    当前仍保留旧MD5判重逻辑，
+    因此删除文献时必须同步删除该记录，
+    否则同一文件无法重新上传。
+    """
+
+    md5_path = Path(
+        config.md5_path
+    )
+
+    if not md5_path.exists():
+        return
+
+    existing_md5_values = [
+        line.strip()
+        for line in md5_path.read_text(
+            encoding="utf-8"
+        ).splitlines()
+        if line.strip()
+    ]
+
+    remaining_md5_values = [
+        value
+        for value in existing_md5_values
+        if value != file_md5
+    ]
+
+    new_content = "\n".join(
+        remaining_md5_values
+    )
+
+    if new_content:
+        new_content += "\n"
+
+    temporary_path = md5_path.with_name(
+        f"{md5_path.name}.tmp"
+    )
+
+    temporary_path.write_text(
+        new_content,
+        encoding="utf-8",
+    )
+
+    temporary_path.replace(
+        md5_path
+    )
+
+
+def delete_file_record(
+    file_id: int,
+) -> None:
+    """
+    删除SQLite中的文献记录。
+    """
+
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            DELETE FROM files
+            WHERE id = ?
+            """,
+            (file_id,),
+        )
+
+        if cursor.rowcount == 0:
+            raise ValueError(
+                f"没有找到ID为{file_id}的文献记录"
+            )

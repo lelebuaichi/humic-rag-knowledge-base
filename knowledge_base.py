@@ -187,6 +187,36 @@ class KnowledgeBaseService:
             operator=operator,
         )
 
+    def delete_documents_by_md5(
+            self,
+            file_md5: str,
+    ) -> int:
+        """
+        根据文件MD5删除Chroma中的全部知识片段。
+
+        返回实际找到并删除的知识片段数量。
+        """
+
+        result = self.chroma.get(
+            where={
+                "file_md5": file_md5,
+            },
+        )
+
+        document_ids = result.get(
+            "ids",
+            [],
+        )
+
+        if not document_ids:
+            return 0
+
+        self.chroma.delete(
+            ids=document_ids,
+        )
+
+        return len(document_ids)
+
     def upload_documents(
         self,
         documents: list[Document],
