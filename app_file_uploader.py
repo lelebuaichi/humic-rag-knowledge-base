@@ -558,6 +558,7 @@ if submit_button:
                 file_bytes=file_bytes,
                 filename=file_name,
                 operator = current_user["username"],
+                uploader_id=current_user["id"],
             )
         except Exception as error:
             st.error(f"写入知识库失败：{error}")

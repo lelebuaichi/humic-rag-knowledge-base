@@ -18,6 +18,14 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 import config_data as config
 
+from file_service import (
+    create_file_record,
+    get_file_by_md5,
+    mark_file_failed,
+    mark_file_ready,
+    save_original_file,
+)
+
 
 def prepare_md5_file() -> Path:
     """
@@ -185,6 +193,7 @@ class KnowledgeBaseService:
         file_bytes: bytes,
         filename: str,
         operator: str,
+        uploader_id: int,
     ) -> str:
         """
         上传Document列表。
@@ -203,6 +212,31 @@ class KnowledgeBaseService:
         # 对原始文件计算MD5
         file_md5 = get_bytes_md5(file_bytes)
 
+        existing_record = get_file_by_md5(
+            file_md5
+        )
+
+        if existing_record is not None:
+            status = existing_record["status"]
+
+            if status == "ready":
+                return (
+                    "该文献已经存在于共享知识库中。"
+                    f"上传人：{existing_record['uploader_name']}；"
+                    f"上传时间：{existing_record['upload_time']}；"
+                    f"知识片段数：{existing_record['chunk_count']}。"
+                )
+
+            if status == "processing":
+                return (
+                    "该文献正在处理中，请勿重复上传。"
+                )
+
+            return (
+                "该文献此前处理失败，"
+                "请联系管理员清理失败记录后重新上传。"
+            )
+
         # 文件完全相同则跳过
         if check_md5(file_md5):
             return "跳过：该文件已经在知识库中"
@@ -212,6 +246,18 @@ class KnowledgeBaseService:
         )
 
         prepared_documents: list[Document] = []
+        stored_path = save_original_file(
+            file_bytes=file_bytes,
+            filename=filename,
+            file_md5=file_md5,
+        )
+
+        file_id = create_file_record(
+            file_md5=file_md5,
+            original_filename=filename,
+            stored_path=stored_path,
+            uploader_id=uploader_id,
+        )
 
         for document in documents:
             page_content = document.page_content.strip()
@@ -240,6 +286,8 @@ class KnowledgeBaseService:
             )
 
         if not prepared_documents:
+            mark_file_failed(file_id)
+
             return "文档中没有可写入的有效文字"
 
         # 对Document进行切分，并保留每页元数据
@@ -250,18 +298,32 @@ class KnowledgeBaseService:
         )
 
         if not knowledge_chunks:
+            mark_file_failed(file_id)
+
             return "文本切分后没有生成有效知识片段"
 
         # 将Document列表写入Chroma
-        self.chroma.add_documents(
-            documents=knowledge_chunks
-        )
+        try:
+            self.chroma.add_documents(
+                documents=knowledge_chunks
+            )
 
-        # Chroma写入成功以后，再记录MD5
-        save_md5(file_md5)
+            # Chroma写入成功后更新文献状态
+            mark_file_ready(
+                file_id=file_id,
+                chunk_count=len(knowledge_chunks),
+            )
+
+            # 暂时保留旧MD5记录，兼容已有逻辑
+            save_md5(file_md5)
+
+        except Exception:
+            # 发生异常时把文献标记为失败
+            mark_file_failed(file_id)
+            raise
 
         return (
-            "内容已经成功载入向量库，"
+            "内容已经成功载入共享知识库，"
             f"共生成 {len(knowledge_chunks)} 个知识片段"
         )
 
