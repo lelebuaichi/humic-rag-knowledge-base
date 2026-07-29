@@ -20,6 +20,7 @@ data/uploads/
 data/*.pdf
 data/md5.txt
 data/app.db
+data/
 
 # 旧MD5文件
 md5.txt
