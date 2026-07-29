@@ -24,6 +24,21 @@ md5_path = os.path.join(
     "md5.txt",
 )
 
+# SQLite数据库路径
+database_path = os.path.join(
+    BASE_DIR,
+    "data",
+    "app.db",
+)
+
+
+# 组内上传原始文件的保存目录
+uploads_directory = os.path.join(
+    BASE_DIR,
+    "data",
+    "uploads",
+)
+
 
 # 模型配置
 embedding_model_name = "text-embedding-v4"
