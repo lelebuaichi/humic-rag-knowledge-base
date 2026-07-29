@@ -24,13 +24,24 @@ from langchain_community.document_loaders.parsers import (
 
 from knowledge_base import KnowledgeBaseService
 
-
-st.set_page_config(
-    page_title="知识库更新服务",   #标签页名称
-    page_icon="📚",
+from auth_ui import (
+    require_login,
+    render_account_sidebar,
 )
 
-st.title("知识库更新服务")    #正文一级标题
+st.set_page_config(
+    page_title="课题组文献上传",
+    page_icon="📄",
+    layout="wide",
+)
+
+
+current_user = require_login()
+
+render_account_sidebar(current_user)
+
+
+st.title("课题组文献上传")
 
 
 # 用于识别论文中的参考文献标题。
@@ -385,9 +396,13 @@ with st.form("knowledge_upload_form"):
         accept_multiple_files=False,
     )
 
-    operator = st.text_input(
-        "上传人",
-        placeholder="请输入上传人姓名",
+    # 上传人直接使用当前登录账号，不能手工冒用他人姓名
+    operator = current_user["username"]
+
+    st.info(
+        f"当前上传人："
+        f"{current_user['display_name']} "
+        f"（账号：{current_user['username']}）"
     )
 
     include_references = st.checkbox(
@@ -542,7 +557,7 @@ if submit_button:
                 documents=documents,
                 file_bytes=file_bytes,
                 filename=file_name,
-                operator=operator,
+                operator = current_user["username"],
             )
         except Exception as error:
             st.error(f"写入知识库失败：{error}")
