@@ -7,14 +7,26 @@ import uuid
 import streamlit as st
 
 from rag import RagService
+from auth_ui import (
+    require_login,
+    render_account_sidebar,
+)
 
 
 st.set_page_config(
-    page_title="文献查询",
-    page_icon="🔍",
+    page_title="课题组知识库问答",
+    page_icon="💬",
+    layout="wide",
 )
 
-st.title("文献查询")
+# 要求用户登录
+current_user = require_login()
+
+# 在侧边栏显示当前用户
+render_account_sidebar(current_user)
+
+
+st.title("课题组知识库问答")
 st.divider()
 
 
