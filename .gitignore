@@ -1,0 +1,35 @@
+# Python虚拟环境
+.venv/
+venv/
+
+# Python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# API密钥
+.streamlit/secrets.toml
+.env
+
+# 本地运行数据
+chat_history/
+data/chroma_db/
+data/chroma_v2/
+data/uploads/
+data/*.pdf
+data/md5.txt
+data/app.db
+
+# 旧MD5文件
+md5.txt
+md5.text
+
+# 环境依赖备份
+requirements-all.txt
+
+# 编辑器和系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
