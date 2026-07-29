@@ -57,12 +57,10 @@ def save_original_file(
     file_md5: str,
 ) -> str:
     """
-    将上传的原始PDF或TXT保存到data/uploads。
+    保存上传的原始PDF或TXT。
 
-    实际文件名使用MD5，避免：
-    1. 不同用户上传同名文件；
-    2. 原始文件名包含特殊字符；
-    3. 同一个文件被重复保存。
+    数据库中只保存相对于项目根目录的路径，
+    从而兼容Windows本地环境和Linux容器环境。
     """
 
     suffix = Path(filename).suffix.lower()
@@ -77,19 +75,27 @@ def save_original_file(
         exist_ok=True,
     )
 
-    stored_path = (
-        UPLOADS_DIRECTORY
-        / f"{file_md5}{suffix}"
+    stored_filename = (
+        f"{file_md5}{suffix}"
     )
 
-    # 相同MD5文件已存在时，不重复写入磁盘
-    if stored_path.exists():
-        return str(stored_path)
+    absolute_path = (
+        UPLOADS_DIRECTORY
+        / stored_filename
+    )
 
-    # 先写临时文件，完成后再替换，
-    # 避免写入中断后留下不完整文件
-    temporary_path = stored_path.with_name(
-        f"{stored_path.name}.tmp"
+    # 写入数据库的可移植相对路径
+    relative_path = (
+        Path("data")
+        / "uploads"
+        / stored_filename
+    )
+
+    if absolute_path.exists():
+        return relative_path.as_posix()
+
+    temporary_path = absolute_path.with_name(
+        f"{absolute_path.name}.tmp"
     )
 
     temporary_path.write_bytes(
@@ -97,10 +103,10 @@ def save_original_file(
     )
 
     temporary_path.replace(
-        stored_path
+        absolute_path
     )
 
-    return str(stored_path)
+    return relative_path.as_posix()
 
 
 def create_file_record(
@@ -271,17 +277,35 @@ def get_file_by_id(
     return dict(row)
 
 
+def resolve_stored_path(
+    stored_path: str,
+) -> Path:
+    """
+    将数据库中的存储路径转换为当前运行环境下的绝对路径。
+    """
+
+    file_path = Path(stored_path)
+
+    # 新版记录保存的是相对路径
+    if not file_path.is_absolute():
+        file_path = (
+            Path(config.BASE_DIR)
+            / file_path
+        )
+
+    return file_path
+
+
 def delete_original_file(
     stored_path: str,
 ) -> None:
     """
-    删除data/uploads中的原始文件。
-
-    文件已经不存在时不报错，
-    保证重复执行删除操作仍然安全。
+    删除保存的原始文件。
     """
 
-    file_path = Path(stored_path)
+    file_path = resolve_stored_path(
+        stored_path
+    )
 
     if file_path.exists():
         file_path.unlink()

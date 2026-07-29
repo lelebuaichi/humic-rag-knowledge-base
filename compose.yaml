@@ -1,0 +1,28 @@
+name: humic-rag
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: humic-rag:local
+    container_name: humic-rag
+
+    restart: unless-stopped
+    init: true
+
+    ports:
+      - "8501:8501"
+
+    env_file:
+      - .env
+
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
+
+      - type: bind
+        source: ./chat_history
+        target: /app/chat_history
