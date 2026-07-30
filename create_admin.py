@@ -1,10 +1,14 @@
 from getpass import getpass
 
 from auth_service import create_user
-
+from database import init_database
 
 def main() -> None:
+    # 确保首次创建管理员前，数据库表已经存在
+    init_database()
+
     print("创建课题组知识库管理员账号")
+
 
     username = input(
         "管理员用户名："

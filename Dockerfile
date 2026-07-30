@@ -29,4 +29,4 @@ EXPOSE 8501
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
-ENTRYPOINT ["python", "-m", "streamlit", "run", "main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
+ENTRYPOINT ["sh", "-c", "python database.py && exec python -m streamlit run main.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true"]
