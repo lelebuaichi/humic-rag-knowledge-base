@@ -226,3 +226,47 @@ def set_user_status(
             raise ValueError(
                 f"没有找到ID为{user_id}的用户"
             )
+
+
+def reset_password(
+    username: str,
+    new_password: str,
+) -> None:
+    """
+    重置指定用户的密码。
+
+    忘记密码时由管理员在服务器上执行，
+    重新生成随机盐值并覆盖原密码哈希。
+    """
+
+    username = normalize_username(username)
+
+    if len(new_password) < 8:
+        raise ValueError("密码长度不能少于8位")
+
+    # 重新生成独立随机盐值
+    salt = secrets.token_bytes(16)
+
+    password_hash = _derive_password_hash(
+        new_password,
+        salt,
+    )
+
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE users
+            SET password_hash = ?, password_salt = ?
+            WHERE username = ?
+            """,
+            (
+                password_hash,
+                salt.hex(),
+                username,
+            ),
+        )
+
+        if cursor.rowcount == 0:
+            raise ValueError(
+                f"没有找到用户 {username}"
+            )

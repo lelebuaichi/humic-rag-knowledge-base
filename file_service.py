@@ -154,7 +154,6 @@ def create_file_record(
             "该文献已经存在于共享知识库中"
         ) from error
 
-
 def mark_file_ready(
     file_id: int,
     chunk_count: int,
@@ -384,3 +383,88 @@ def delete_file_record(
             raise ValueError(
                 f"没有找到ID为{file_id}的文献记录"
             )
+
+def save_parent_chunk(
+    parent_id: str,
+    file_id: int,
+    parent_index: int,
+    content: str,
+    page: int | None = None,
+    section: str | None = None,
+    content_type: str = "body",
+) -> None:
+    """
+    保存一个Parent大文本块。
+    """
+
+    if not content.strip():
+        raise ValueError("Parent文本不能为空")
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO parent_chunks (
+                parent_id,
+                file_id,
+                parent_index,
+                page,
+                section,
+                content_type,
+                content
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                parent_id,
+                file_id,
+                parent_index,
+                page,
+                section,
+                content_type,
+                content.strip(),
+            ),
+        )
+
+
+def get_parent_chunk(
+    parent_id: str,
+) -> dict | None:
+    """
+    根据parent_id读取完整Parent文本，
+    同时读取文件来源和上传人信息。
+    """
+
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                p.parent_id,
+                p.file_id,
+                p.parent_index,
+                p.page,
+                p.section,
+                p.content_type,
+                p.content,
+
+                f.original_filename AS source,
+                f.upload_time AS create_time,
+
+                u.display_name AS uploader
+
+            FROM parent_chunks AS p
+
+            LEFT JOIN files AS f
+                ON p.file_id = f.id
+
+            LEFT JOIN users AS u
+                ON f.uploader_id = u.id
+
+            WHERE p.parent_id = ?
+            """,
+            (parent_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)

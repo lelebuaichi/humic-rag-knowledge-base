@@ -21,11 +21,21 @@ import config_data as config
 class RagService:
 
     def __init__(self):
-        api_key = os.getenv("DASHSCOPE_API_KEY")
+        # 向量化模型仍使用阿里云百炼 DashScope
+        dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
 
-        if not api_key:
+        if not dashscope_api_key:
             raise RuntimeError(
                 "未检测到 DASHSCOPE_API_KEY，"
+                "请配置环境变量或 Streamlit Secrets。"
+            )
+
+        # 对话模型使用 DeepSeek
+        deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
+
+        if not deepseek_api_key:
+            raise RuntimeError(
+                "未检测到 DEEPSEEK_API_KEY，"
                 "请配置环境变量或 Streamlit Secrets。"
             )
         """初始化RAG服务。"""
@@ -33,7 +43,8 @@ class RagService:
         # 创建向量库服务
         self.vector_service = VectorStoreService(
             embedding=DashScopeEmbeddings(
-                model=config.embedding_model_name
+                model=config.embedding_model_name,
+                dashscope_api_key=dashscope_api_key,
             )
         )
 
@@ -41,10 +52,20 @@ class RagService:
         self.prompt_template = ChatPromptTemplate.from_messages(
             [
                 (
-                    "system",
-                    "请以提供的参考资料为主要依据，"
-                    "简洁、专业地回答用户问题。\n\n"
-                    "参考资料：\n{context}",
+                    "system", """
+                    请根据提供的参考资料回答用户问题。
+
+                    要求：
+                    1. 优先依据当前参考资料中的明确事实回答。
+                    2. 不要将对话历史中的AI回答视为事实依据。
+                    3. 如果参考资料没有明确支持某个结论，不要自行补充或强化因果关系。
+                    4. 可以总结和归纳参考资料，但应区分“文献明确说明”和“可能的推断”。
+                    5. 如果参考资料不足以回答某一点，请明确说明资料不足。
+                    6. 回答应简洁、专业。
+
+                    当前参考资料：
+                    {context}
+                    """
                 ),
 
                 # 历史消息插入位置
@@ -63,10 +84,10 @@ class RagService:
         # 创建聊天模型
         self.chat_model = ChatOpenAI(
             model=config.chat_model_name,
-            api_key=api_key,
-            base_url=(
-                "https://dashscope.aliyuncs.com/"
-                "compatible-mode/v1"
+            api_key=deepseek_api_key,
+            base_url=os.getenv(
+                "LLM_BASE_URL",
+                "https://api.deepseek.com",
             ),
         )
 
@@ -76,10 +97,27 @@ class RagService:
     def _get_chain(self):
         """创建并返回带历史记录的RAG链。"""
 
-        retriever = self.vector_service.get_retriever()
+        def retrieve_documents(
+                query: str,
+        ) -> list[Document]:
+            """
+            完整检索流程：
+
+            Query
+            → Semantic + BM25
+            → RRF Hybrid Search
+            → Reranker
+            → Top-K Child
+            → Small-to-Big
+            → Parent
+            """
+
+            return self.vector_service.retrieve_parent_documents(
+                query=query
+            )
 
         def format_documents(
-            docs: list[Document],
+                docs: list[Document],
         ) -> str:
             """
             将检索到的Document列表整理成参考资料字符串。
@@ -143,9 +181,9 @@ class RagService:
 
                 # 当前问题进入向量库检索
                 "context": (
-                    extract_input
-                    | retriever
-                    | RunnableLambda(format_documents)
+                        extract_input
+                        | RunnableLambda(retrieve_documents)
+                        | RunnableLambda(format_documents)
                 ),
 
                 # 历史记录填入MessagesPlaceholder
@@ -203,8 +241,10 @@ if __name__ == "__main__":
     rag_service = RagService()
 
     result = rag_service.ask(
-        question="The role of humic acid",
-        session_id="test_002",
+        question="What role does hydroxyl radical (•OH) play "
+        "in the humification of Enteromorpha prolifera "
+        "by Fenton's reagent?",
+        session_id="rag_grounding_test_001",
     )
 
     print("模型回答：")

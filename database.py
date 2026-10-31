@@ -100,6 +100,41 @@ def init_database() -> None:
             CREATE INDEX IF NOT EXISTS
                 idx_files_uploader_id
             ON files(uploader_id);
+            
+            CREATE TABLE IF NOT EXISTS parent_chunks (
+    parent_id TEXT PRIMARY KEY,
+
+    file_id INTEGER NOT NULL,
+
+    parent_index INTEGER NOT NULL,
+
+    page INTEGER,
+
+    section TEXT,
+
+    content_type TEXT NOT NULL DEFAULT 'body',
+
+    content TEXT NOT NULL,
+
+    FOREIGN KEY (file_id)
+        REFERENCES files(id)
+        ON DELETE CASCADE,
+
+    UNIQUE (
+        file_id,
+        parent_index
+    )
+);
+
+
+CREATE INDEX IF NOT EXISTS
+    idx_parent_chunks_file_id
+ON parent_chunks(file_id);
+
+
+CREATE INDEX IF NOT EXISTS
+    idx_parent_chunks_parent_index
+ON parent_chunks(parent_index);
 
 
             CREATE INDEX IF NOT EXISTS

@@ -13,3 +13,7 @@ pymupdf==1.28.0
 
 rapidocr==3.9.1
 onnxruntime==1.27.0
+
+# 混合检索与重排
+rank-bm25==0.2.2
+sentence-transformers==4.1.0

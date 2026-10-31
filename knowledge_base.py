@@ -5,7 +5,7 @@
 3. 文本向量化
 4. 写入Chroma
 """
-
+import re
 import hashlib
 import os
 from datetime import datetime
@@ -24,8 +24,8 @@ from file_service import (
     mark_file_failed,
     mark_file_ready,
     save_original_file,
+    save_parent_chunk,   # 新增
 )
-
 
 def prepare_md5_file() -> Path:
     """
@@ -137,10 +137,16 @@ class KnowledgeBaseService:
             persist_directory=config.persist_directory,
         )
 
-        # 创建文本分割器
-        self.splitter = RecursiveCharacterTextSplitter(
-            chunk_size=config.chunk_size,
-            chunk_overlap=config.chunk_overlap,
+        self.parent_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=config.parent_chunk_size,
+            chunk_overlap=config.parent_chunk_overlap,
+            separators=config.separators,
+            length_function=len,
+        )
+
+        self.child_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=config.child_chunk_size,
+            chunk_overlap=config.child_chunk_overlap,
             separators=config.separators,
             length_function=len,
         )
@@ -217,6 +223,41 @@ class KnowledgeBaseService:
 
         return len(document_ids)
 
+    @staticmethod
+    def clean_pdf_text(text: str) -> str:
+        """
+        清理英文论文 PDF 提取后的常见排版问题。
+        """
+
+        # 统一换行符
+        text = text.replace("\r\n", "\n")
+        text = text.replace("\r", "\n")
+
+        # 修复 PDF 行尾断词：
+        # humi-\nfication -> humification
+        text = re.sub(
+            r"-\n",
+            "-",
+            text,
+        )
+
+        # 单个换行通常只是 PDF 的视觉换行，
+        # 转成空格；双换行继续保留为段落边界
+        text = re.sub(
+            r"(?<!\n)\n(?!\n)",
+            " ",
+            text,
+        )
+
+        # 合并多余空格
+        text = re.sub(
+            r"[ \t]+",
+            " ",
+            text,
+        )
+
+        return text.strip()
+
     def upload_documents(
         self,
         documents: list[Document],
@@ -292,6 +333,11 @@ class KnowledgeBaseService:
         for document in documents:
             page_content = document.page_content.strip()
 
+            if filename.lower().endswith(".pdf"):
+                page_content = self.clean_pdf_text(
+                    page_content
+                )
+
             if not page_content:
                 continue
 
@@ -321,16 +367,78 @@ class KnowledgeBaseService:
             return "文档中没有可写入的有效文字"
 
         # 对Document进行切分，并保留每页元数据
-        knowledge_chunks = (
-            self.splitter.split_documents(
-                prepared_documents
-            )
+        # ==============================
+        # Small-to-Big：Parent / Child 切分
+        # ==============================
+
+        # 第一层：先切 Parent 大块
+        parent_chunks = self.parent_splitter.split_documents(
+            prepared_documents
         )
+
+        knowledge_chunks: list[Document] = []
+
+        # 第二层：每个 Parent 再切成多个 Child
+        for parent_index, parent_document in enumerate(parent_chunks):
+
+            # 为每个 Parent 创建唯一 ID
+            parent_id = (
+                f"{file_md5}:parent:{parent_index}"
+            )
+
+            parent_content = parent_document.page_content.strip()
+
+            if not parent_content:
+                continue
+            # 将Parent大文本块保存到SQLite
+            save_parent_chunk(
+                parent_id=parent_id,
+                file_id=file_id,
+                parent_index=parent_index,
+                content=parent_content,
+                page=parent_document.metadata.get("page"),
+                section=parent_document.metadata.get("section"),
+                content_type=parent_document.metadata.get(
+                    "content_type",
+                    "body",
+                ),
+            )
+
+            # 当前 Parent 再切成 Child 小块
+            child_chunks = self.child_splitter.split_documents(
+                [parent_document]
+            )
+
+            for child_index, child_document in enumerate(child_chunks):
+
+                child_content = child_document.page_content.strip()
+
+                if not child_content:
+                    continue
+
+                metadata = child_document.metadata.copy()
+
+                metadata.update(
+                    {
+                        "parent_id": parent_id,
+                        "parent_index": parent_index,
+                        "child_index": child_index,
+                        "chunk_level": "child",
+                    }
+                )
+
+                knowledge_chunks.append(
+                    Document(
+                        page_content=child_content,
+                        metadata=metadata,
+                    )
+                )
 
         if not knowledge_chunks:
             mark_file_failed(file_id)
 
             return "文本切分后没有生成有效知识片段"
+
 
         # 将Document列表写入Chroma
         try:
