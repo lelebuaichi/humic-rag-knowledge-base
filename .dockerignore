@@ -1,4 +1,3 @@
-# Git
 .git/
 .gitignore
 
@@ -17,6 +16,9 @@ __pycache__/
 # 运行时持久化数据
 data/
 chat_history/
+
+# HuggingFace 本地模型缓存
+hf_cache/
 
 # 本地备份和无关文件
 requirements-all.txt

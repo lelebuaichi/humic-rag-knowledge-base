@@ -19,7 +19,8 @@ RUN apt-get update \
 COPY requirements.txt .
 
 RUN python -m pip install --upgrade pip \
-    && python -m pip install -r requirements.txt
+    && python -m pip install -r requirements.txt \
+        --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 复制项目代码
 COPY . .

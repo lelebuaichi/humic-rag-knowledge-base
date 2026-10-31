@@ -34,3 +34,6 @@ requirements-all.txt
 .idea/
 .DS_Store
 Thumbs.db
+
+# HuggingFace 本地模型缓存（宿主机预下载）
+hf_cache/

@@ -26,3 +26,8 @@ services:
       - type: bind
         source: ./chat_history
         target: /app/chat_history
+
+      # 预下载的本地模型（重排器等），宿主机 hf_cache/models → /models
+      - type: bind
+        source: ./hf_cache/models
+        target: /models
