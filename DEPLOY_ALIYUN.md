@@ -26,6 +26,8 @@
 | 系统盘 | **≥ 40GB**（torch + 模型 + 数据） |
 | 带宽 | 按需（5M 起步够用） |
 
+> **低配省钱选项（演示模式）**：如果只是面试演示，可买 **2核2G**，并在 `.env` 里设 `ENABLE_RERANKER=false` 跳过重排器——内存实测约 700MB，2G 完全够用，且无需迁移 `hf_cache/models/`（1.1GB 模型不加载）。
+
 拿到 **公网 IP** 后，用 SSH 登录（阿里云控制台 / 本地终端均可）。
 
 ---
@@ -97,6 +99,7 @@ nano .env
 DEEPSEEK_API_KEY=sk-你的DeepSeekkey
 DASHSCOPE_API_KEY=sk-你的DashScope key
 HF_ENDPOINT=https://hf-mirror.com
+ENABLE_RERANKER=false
 ```
 
 > ⚠️ `.env` 含真实密钥，已被 gitignore，**绝不能提交到 GitHub**。

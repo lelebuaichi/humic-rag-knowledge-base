@@ -3,7 +3,6 @@
 """
 
 from langchain_chroma import Chroma
-from sentence_transformers import CrossEncoder
 import config_data as config
 from langchain_core.documents import Document
 from file_service import get_parent_chunk
@@ -23,15 +22,27 @@ class VectorStoreService:
             persist_directory=config.persist_directory,
         )
 
-        # Reranker：用于对MMR召回结果重新打分排序
+        # Reranker：用于对召回结果重新打分排序。
         # 国内环境从ModelScope预下载到 ./hf_cache/models，
         # 由compose挂载到 /models 后本地加载，避免HuggingFace网络问题。
-        self.reranker = CrossEncoder(
-            os.getenv(
-                "RERANKER_MODEL",
-                "/models/bge-reranker-base",
+        # 低配/演示机器可设 ENABLE_RERANKER=false 跳过重排，
+        # 省去 torch 与模型加载的内存占用。
+        self.enable_reranker = os.getenv(
+            "ENABLE_RERANKER",
+            "true",
+        ).strip().lower() in {"1", "true", "yes", "on"}
+
+        self.reranker = None
+
+        if self.enable_reranker:
+            from sentence_transformers import CrossEncoder
+
+            self.reranker = CrossEncoder(
+                os.getenv(
+                    "RERANKER_MODEL",
+                    "/models/bge-reranker-base",
+                )
             )
-        )
         self.bm25 = None
         self.bm25_documents: list[Document] = []
         self.bm25_document_count = 0
@@ -337,6 +348,13 @@ class VectorStoreService:
         先使用Hybrid Search召回候选Child，
         再使用Cross-Encoder重新排序。
         """
+
+        # 演示/低配模式：未加载重排器时，直接用混合检索Top-K
+        if self.reranker is None:
+            return self.hybrid_search(
+                query=query,
+                k=config.rerank_final_k,
+            )
 
         # 1. Hybrid Search 粗召回
         candidates = self.hybrid_search(
