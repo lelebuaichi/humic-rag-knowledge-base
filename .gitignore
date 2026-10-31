@@ -37,3 +37,7 @@ Thumbs.db
 
 # HuggingFace 本地模型缓存（宿主机预下载）
 hf_cache/
+
+# 临时验证文件与数据备份
+_verify_*
+data_backup_*/
