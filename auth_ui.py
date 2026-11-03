@@ -20,10 +20,10 @@ def render_login_page() -> None:
     显示登录界面，并处理用户名和密码验证。
     """
 
-    st.title("聚能腐植酸课题组知识库")
+    st.title("智能验布机异常处理助手")
 
     st.write(
-        "本系统仅供课题组授权成员使用。"
+        "本系统仅供授权用户使用。"
     )
 
     with st.form("login_form"):

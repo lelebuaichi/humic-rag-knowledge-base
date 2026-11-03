@@ -9,7 +9,7 @@ from database import init_database
 
 # 整个应用的默认页面配置
 st.set_page_config(
-    page_title="聚能腐植酸课题组知识库",
+    page_title="智能验布机异常处理助手",
     page_icon="📚",
     layout="wide",
 )
@@ -45,20 +45,20 @@ init_database()
 
 qa_page = st.Page(
     "pages/qa_page.py",
-    title="知识库问答",
+    title="异常处理问答",
     icon="💬",
     default=True,
 )
 
 upload_page = st.Page(
     "pages/file_upload_page.py",
-    title="文献上传",
+    title="资料上传",
     icon="📄",
 )
 
 file_manager_page = st.Page(
     "pages/file_manager_page.py",
-    title="共享文献管理",
+    title="资料库管理",
     icon="📚",
 )
 

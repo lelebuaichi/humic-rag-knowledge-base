@@ -1,5 +1,5 @@
 """
-Streamlit文献查询聊天页面。
+Streamlit异常处理问答页面。
 """
 
 import uuid
@@ -14,7 +14,7 @@ from auth_ui import (
 
 
 st.set_page_config(
-    page_title="课题组知识库问答",
+    page_title="异常处理问答",
     page_icon="💬",
     layout="wide",
 )
@@ -26,7 +26,7 @@ current_user = require_login()
 render_account_sidebar(current_user)
 
 
-st.title("课题组知识库问答")
+st.title("异常处理问答")
 st.divider()
 
 

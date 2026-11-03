@@ -21,7 +21,7 @@ from file_service import (
 from knowledge_base import KnowledgeBaseService
 
 st.set_page_config(
-    page_title="共享文献管理",
+    page_title="资料库管理",
     page_icon="📚",
     layout="wide",
 )
@@ -45,7 +45,7 @@ current_user = require_login()
 render_account_sidebar(current_user)
 
 
-st.title("共享文献列表")
+st.title("资料列表")
 
 delete_message = st.session_state.pop(
     "file_delete_message",

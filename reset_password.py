@@ -8,7 +8,7 @@ def main() -> None:
     # 确保数据库表已存在
     init_database()
 
-    print("重置课题组知识库用户密码")
+    print("重置「智能验布机异常处理助手」用户密码")
 
     username = input(
         "要重置的用户名："

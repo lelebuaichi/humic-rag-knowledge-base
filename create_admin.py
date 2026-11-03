@@ -7,7 +7,7 @@ def main() -> None:
     # 确保首次创建管理员前，数据库表已经存在
     init_database()
 
-    print("创建课题组知识库管理员账号")
+    print("创建「智能验布机异常处理助手」管理员账号")
 
 
     username = input(

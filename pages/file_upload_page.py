@@ -1,5 +1,5 @@
 """
-Streamlit知识库文件上传页面。
+Streamlit资料上传页面。
 
 功能：
 1. 支持TXT和PDF上传；
@@ -38,7 +38,7 @@ from auth_ui import (
 )
 
 st.set_page_config(
-    page_title="课题组文献上传",
+    page_title="资料上传",
     page_icon="📄",
     layout="wide",
 )
@@ -49,7 +49,7 @@ current_user = require_login()
 render_account_sidebar(current_user)
 
 
-st.title("课题组文献上传")
+st.title("资料上传")
 
 
 # 用于识别论文中的参考文献标题。
